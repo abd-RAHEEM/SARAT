@@ -11,13 +11,9 @@ id_number=6687
 # %%####this will be required as input in the form of string [comment to run the code as function]
 import sys
 import os
-import numpy as np
-# path='/home/arkaprava/INCOIS_ARO/SARAT_V3_Visualization/'
-path = os.path.dirname(os.path.abspath(__file__))
+path='/home/arkaprava/INCOIS_ARO/SARAT_V3_Visualization/'
 
-# inputpath= os.path.join(path, f"case{id_number}/")
-inputpath = os.path.join(path, "case6687")
-
+inputpath= os.path.join(path, f"case{id_number}/")
 
 # inputpath=f'/home/arkaprava/INCOIS_ARO/may2025/combination3186/case7070_31_24_26_c7052/case{id_number}/'
 sys.path.append(inputpath)
@@ -25,14 +21,12 @@ sys.path.append(inputpath)
 functionpath='/home/arkaprava/INCOIS_ARO/SARAT_V3_Visualization/pyfunc/'
 
 
-# outputpath=os.path.join(path, f"case{id_number}/figure/")
-outputpath = os.path.join(inputpath, "figure")
-
+outputpath=os.path.join(path, f"case{id_number}/figure/")
 
 # outputpath=f'/home/arkaprava/INCOIS_ARO/may2025/combination3186/case7070_31_24_26_c7052/case{id_number}/figure/'
 
 
-# sys.path.append(functionpath)
+sys.path.append(functionpath)
 import sarat_visuals
 import allin1sarat
 
@@ -56,98 +50,11 @@ for key, value in grid_meta.items():
     globals()[key] = value
 
 
-# plot_beacon_track = beacon_lon is not None and beacon_lat is not None
-plot_beacon_track = False
+plot_beacon_track = beacon_lon is not None and beacon_lat is not None
 
-# %%=== GENERATE CONVEX HULL GEOJSON FILES FOR EACH INTERVAL ===
-import json
-from geojson_utils import create_hull_geojson, create_geojson_index, save_geojson
-from pdf_utils import generate_pdf_report, generate_summary_stats
 
-def generate_hull_geojson_files(outputpath, prob_grids, intervals, lon_bins, lat_bins, probability_threshold=0.05):
-    """
-    Generate convex hull GeoJSON files for each time interval.
-    Each GeoJSON contains a polygon representing the search region.
-    """
-    print(f"\n--- Generating Convex Hull GeoJSON files ---")
-    print(f"Probability threshold: {probability_threshold}%\n")
-    
-    geojson_files = []
-    valid_intervals = []
-    
-    for idx, (start_hour, end_hour) in enumerate(intervals):
-        prob_grid = prob_grids[idx]
-        interval_label = f"{start_hour}-{end_hour}h"
-        
-        # Generate hull
-        geojson_data = create_hull_geojson(
-            prob_grid, lon_bins, lat_bins, 
-            interval_label, 
-            threshold=probability_threshold
-        )
-        
-        if geojson_data:
-            # Save GeoJSON file
-            filename = f"interval_{idx:03d}_{start_hour:03d}_{end_hour:03d}.geojson"
-            filepath = os.path.join(outputpath, filename)
-            save_geojson(geojson_data, filepath)
-            
-            points_included = geojson_data['properties']['points_included']
-            max_prob = geojson_data['properties']['max_probability']
-            area = geojson_data['properties']['hull_area']
-            
-            print(f"  ✓ Interval {idx} ({start_hour}-{end_hour}h): {points_included} points → {filename}")
-            print(f"    └─ Area: {area:.4f}°², Max Prob: {max_prob}%")
-            
-            geojson_files.append(filename)
-            valid_intervals.append([start_hour, end_hour])
-    
-    print(f"\n--- Hull GeoJSON generation complete: {len(geojson_files)}/{len(intervals)} intervals processed ---\n")
-    
-    return geojson_files, valid_intervals
-
-# Generate convex hull GeoJSON files
-geojson_files, geojson_intervals = generate_hull_geojson_files(
-    outputpath, prob_grids, intervals, lon_bins, lat_bins, 
-    probability_threshold=0.05
-)
-
-# %%=== GENERATE GEOJSON INDEX FOR LEAFLET MAP ===
-def save_geojson_index(outputpath, geojson_files, intervals, case_id):
-    """
-    Create a GeoJSON index file for the Leaflet map to discover all intervals.
-    """
-    index = create_geojson_index(geojson_files, intervals, case_id)
-    
-    index_path = os.path.join(outputpath, "geojson_index.json")
-    with open(index_path, "w") as f:
-        json.dump(index, f, indent=2)
-    
-    print(f"✓ GeoJSON index created: {index_path}")
-    print(f"  Geometry type: {index['geometry_type']}")
-    print(f"  Time span: {intervals[0][0]}-{intervals[-1][1]} hours")
-    print(f"  Total intervals: {len(intervals)}\n")
-
-save_geojson_index(outputpath, geojson_files, geojson_intervals, id_number)
-
-# %%=== GENERATE PDF REPORT ===
-print("--- Generating PDF Report ---")
-case_info = {
-    "num_trajectories": 500,
-    "grid_size": 0.1,
-    "description": f"Search case analysis for ID {id_number}"
-}
-
-pdf_path = generate_pdf_report(
-    outputpath, 
-    id_number, 
-    geojson_intervals,
-    png_prefix="seeding",
-    case_info=case_info
-)
-
-if pdf_path:
-    print(f"  ✓ Multi-page PDF bulletin created with {len(geojson_intervals)} intervals\n")
+with open(os.path.join(outputpath,"bounding_rect_and_centroid.txt"), "w") as coord_file:
+    coord_file.write("Interval,Rect_BottomLeft_Lon,Rect_BottomLeft_Lat,Rect_TopRight_Lon,Rect_TopRight_Lat,Latest_Centroid_Lon,Latest_Centroid_Lat\n")
 
 
 # %%
