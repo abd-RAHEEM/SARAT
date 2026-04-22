@@ -31,8 +31,13 @@ def run_sarat_analysis(id_number,input_path,num_trajectories=500, interval_size=
     if beacontrack:
         beacon_lon, beacon_lat, beacon_time = sarat_visuals.get_drifter_track(currentfile, drifterfile)
 
-
-    current_ds,start_time, end_time, time_length ,ds_hourly=sarat_visuals.currentncproc(currentfile)
+    # NetCDF file not available locally - set to None for now
+    # current_ds,start_time, end_time, time_length ,ds_hourly=sarat_visuals.currentncproc(currentfile)
+    current_ds = None
+    start_time = None
+    end_time = None
+    time_length = None
+    ds_hourly = None
 
 
     trajectories, grid_meta=sarat_visuals.setup_scientific_grid(trajectories, grid_size=0.1, padding=0.15)

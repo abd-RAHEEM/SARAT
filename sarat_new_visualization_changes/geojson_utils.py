@@ -10,6 +10,15 @@ import numpy as np
 from scipy.spatial import ConvexHull
 
 
+def truncate(val):
+    """Truncate float to 6 decimal places"""
+    s = str(val)
+    if '.' in s:
+        i = s.find('.')
+        return float(s[:i+7])
+    return float(s)
+
+
 def create_hull_geojson(prob_grid, lon_bins, lat_bins, interval_label, threshold=0.05):
     """
     Convert probability grid → convex hull polygon GeoJSON
@@ -48,7 +57,7 @@ def create_hull_geojson(prob_grid, lon_bins, lat_bins, interval_label, threshold
                 lon = (lon_bins[j] + lon_bins[j+1]) / 2.0
                 lat = (lat_bins[i] + lat_bins[i+1]) / 2.0
                 
-                coords.append([lon, lat])
+                coords.append([truncate(lon), truncate(lat)])
                 max_prob = max(max_prob, prob_value)
     
     # Need at least 3 points for convex hull
