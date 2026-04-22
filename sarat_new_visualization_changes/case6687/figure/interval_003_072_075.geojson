@@ -1,0 +1,36 @@
+{
+  "type": "Feature",
+  "properties": {
+    "interval": "72-75h",
+    "points_included": 15,
+    "max_probability": 27.3333,
+    "hull_area": 0.2
+  },
+  "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+      [
+        [
+          69.599999,
+          22.35
+        ],
+        [
+          70.099999,
+          22.35
+        ],
+        [
+          70.099999,
+          22.75
+        ],
+        [
+          69.599999,
+          22.75
+        ],
+        [
+          69.599999,
+          22.35
+        ]
+      ]
+    ]
+  }
+}

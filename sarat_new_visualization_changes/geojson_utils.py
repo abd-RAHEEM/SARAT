@@ -18,6 +18,19 @@ def truncate(val):
         return float(s[:i+7])
     return float(s)
 
+# ---------------------------------------------------------------------------
+# Helper: Dynamically truncate a coordinate to max 6 decimal places cleanly
+# operating purely on strings to avoid IEEE float auto-rounding artifacts
+# like "69.832999999..." involuntarily rounding up to 69.833 natively.
+# ---------------------------------------------------------------------------
+def round_coord(value):
+    """Truncate to up to 6 decimal places dynamically."""
+    s = str(value)
+    idx = s.find('.')
+    if idx != -1 and len(s) > idx + 7:
+        s = s[:idx+7]
+    return float(s)
+
 
 def create_hull_geojson(prob_grid, lon_bins, lat_bins, interval_label, threshold=0.05):
     """
@@ -44,8 +57,9 @@ def create_hull_geojson(prob_grid, lon_bins, lat_bins, interval_label, threshold
         GeoJSON Feature with Polygon geometry, or None if insufficient points
     """
     
-    # Extract coordinates of cells above threshold
-    coords = []
+    min_lon, max_lon = float('inf'), float('-inf')
+    min_lat, max_lat = float('inf'), float('-inf')
+    points_included = 0
     max_prob = 0
     
     for i in range(prob_grid.shape[0]):  # lat dimension
@@ -53,37 +67,46 @@ def create_hull_geojson(prob_grid, lon_bins, lat_bins, interval_label, threshold
             prob_value = prob_grid[i][j]
             
             if prob_value > threshold:
-                # Calculate cell center
-                lon = (lon_bins[j] + lon_bins[j+1]) / 2.0
-                lat = (lat_bins[i] + lat_bins[i+1]) / 2.0
+                # Use the cell's physical bin edges
+                min_lon = min(min_lon, lon_bins[j])
+                max_lon = max(max_lon, lon_bins[j+1])
+                min_lat = min(min_lat, lat_bins[i])
+                max_lat = max(max_lat, lat_bins[i+1])
                 
+                points_included += 1
                 coords.append([truncate(lon), truncate(lat)])
                 max_prob = max(max_prob, prob_value)
     
-    # Need at least 3 points for convex hull
-    if len(coords) < 3:
-        print(f"  ⚠️  Interval {interval_label}: Only {len(coords)} points above threshold - skipping hull")
+    # Need at least 1 point for bounding rectangle
+    if points_included == 0:
+        print(f"  ⚠️  Interval {interval_label}: 0 points above threshold - skipping rectangle")
         return None
     
-    # Compute convex hull
+    # Compute bounding rectangle
     try:
-        points = np.array(coords)
-        hull = ConvexHull(points)
+        polygon_coords = [
+            [min_lon, min_lat],
+            [max_lon, min_lat],
+            [max_lon, max_lat],
+            [min_lon, max_lat],
+            [min_lon, min_lat]
+        ]
         
-        # Extract hull vertices (ordered)
-        polygon_coords = points[hull.vertices].tolist()
+        # Round every vertex coordinate to 6 decimal places before writing
+        # GeoJSON to avoid unnecessary floating-point noise in the output.
+        polygon_coords = [[round_coord(v[0]), round_coord(v[1])] for v in polygon_coords]
         
-        # Close the polygon
-        polygon_coords.append(polygon_coords[0])
+        # Approximate area of the bounding box
+        box_area = (max_lon - min_lon) * (max_lat - min_lat)
         
         # Create GeoJSON Feature
         geojson = {
             "type": "Feature",
             "properties": {
                 "interval": interval_label,
-                "points_included": len(coords),
+                "points_included": points_included,
                 "max_probability": round(float(max_prob), 4),
-                "hull_area": round(float(hull.volume), 4)  # 2D "volume" is area
+                "hull_area": round(float(box_area), 4)  # 2D box area
             },
             "geometry": {
                 "type": "Polygon",
@@ -94,7 +117,7 @@ def create_hull_geojson(prob_grid, lon_bins, lat_bins, interval_label, threshold
         return geojson
     
     except Exception as e:
-        print(f"  ✗ Error computing hull for {interval_label}: {e}")
+        print(f"  ✗ Error computing rectangle for {interval_label}: {e}")
         return None
 
 
@@ -143,7 +166,8 @@ def create_points_geojson(prob_grid, lon_bins, lat_bins, interval_label, thresho
                     },
                     "geometry": {
                         "type": "Point",
-                        "coordinates": [lon, lat]
+                        # Round coordinates to 6 decimal places
+                        "coordinates": [round_coord(lon), round_coord(lat)]
                     }
                 }
                 features.append(feature)

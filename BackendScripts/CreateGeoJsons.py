@@ -9,6 +9,20 @@ def is_float(value):
    except ValueError:
        return False
 
+# ---------------------------------------------------------------------------
+# Helper: Dynamically truncate a coordinate to max 6 decimal places cleanly
+# operating purely on strings to avoid IEEE float auto-rounding artifacts
+# like "69.832999999..." involuntarily rounding up to 69.833 natively.
+# ---------------------------------------------------------------------------
+def round_coord(value):
+    """Truncate a latitude or longitude dynamically up to 6 decimal places."""
+    s = str(value)
+    # Check if decimal exists and slice exactly to retain truncation organically
+    idx = s.find('.')
+    if idx != -1 and len(s) > idx + 7:
+        s = s[:idx+7]
+    return float(s)
+
 def createLKPGeoJson(uniqId, searchAndRescueRootDir):
     # finalConvexHullDatFile = os.path.join(searchAndRescueRootDir, f"finalconvexhull_{uniqId}.dat")
     hullDatFile = os.path.join(searchAndRescueRootDir, f"hull_{uniqId}.dat")
@@ -28,7 +42,8 @@ def createLKPGeoJson(uniqId, searchAndRescueRootDir):
                 elif not is_float(lat):
                     print(f"Latitude {lat} is expected to be a float.")
                 else:
-                    lkpCoordinates = [lon, lat]
+                    # Round coordinates to 6 decimal places before storing
+                    lkpCoordinates = [round_coord(lon), round_coord(lat)]
         except Exception as ex:
             print(f"Error while generating LKP geojson file from {hullDatFile}: {str(ex)}")
 
@@ -64,7 +79,9 @@ def createTrajectoriesGeoJson(uniqId, searchAndRescueRootDir):
             for line in f:            
                 if len(line.strip()) > 0:
                     lon, lat = line.split()
-                    trajectoryCoordinates.append([float(lon), float(lat)])
+                    # Round each coordinate to 6 decimal places to keep
+                    # GeoJSON file size reasonable without losing precision
+                    trajectoryCoordinates.append([round_coord(lon), round_coord(lat)])
                 else:
                     # Empty line; end of the line string
                     feature = {
@@ -118,7 +135,9 @@ def createMeanTrajectoryGeoJson(uniqId, searchAndRescueRootDir):
             for line in f:            
                 if len(line.strip()) > 0:
                     lon, lat = line.split()
-                    meanTrajectoryCoordinates.append([lon, lat])
+                    # Round to 6 decimal places (raw strings from .dat file
+                    # may have excess precision; convert to float first)
+                    meanTrajectoryCoordinates.append([round_coord(lon), round_coord(lat)])
 
             # Empty line; end of the line string
             feature = {
